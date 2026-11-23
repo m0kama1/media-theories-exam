@@ -1,31 +1,28 @@
 import { useState } from 'react'
 import { Modal, Toggle } from './ui'
 import { useApp } from '../state'
-import { createSession } from '../lib/exam'
+import { createExam } from '../lib/exam'
 import { navigate } from '../lib/router'
 
-export interface StartRequest {
-  title: string
-  questionIds: number[]
-}
-
-/** Confirms options (timer / shuffle) before starting a pre-defined exam. */
-export function StartExamModal({ req, onClose }: { req: StartRequest | null; onClose: () => void }) {
+/** Confirms options (optional timer) before starting a new randomized 100-question exam. */
+export function StartExamModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { start, exam } = useApp()
   const [timer, setTimer] = useState(false)
-  const [minutes, setMinutes] = useState(60)
-  const [shuffle, setShuffle] = useState(false)
-  if (!req) return null
+  const [minutes, setMinutes] = useState(100)
+  if (!open) return null
   const go = () => {
-    start(createSession({ mode: 'exam', title: req.title, questionIds: req.questionIds, shuffle, timerEnabled: timer, timeLimitMinutes: minutes }))
+    start(createExam({ timerEnabled: timer, timeLimitMinutes: minutes }))
     onClose()
     navigate('/exam')
   }
   return (
-    <Modal open onClose={onClose} title={req.title}>
-      <p className="mb-5 text-sm text-slate-600 dark:text-slate-400">{req.questionIds.length} سؤالًا · سؤال واحد في كل شاشة · لن تظهر الإجابات الصحيحة إلا بعد التسليم.</p>
+    <Modal open onClose={onClose} title="بدء امتحان جديد">
+      <ul className="mb-5 space-y-1.5 text-sm text-slate-600 dark:text-slate-400">
+        <li>• 100 سؤال، سؤال واحد في كل شاشة.</li>
+        <li>• ترتيب الأسئلة والاختيارات عشوائي ويختلف في كل محاولة.</li>
+        <li>• الإجابات والملاحظات التعليمية تظهر بعد التسليم فقط.</li>
+      </ul>
       <div className="space-y-4">
-        <Toggle id="m-shuffle" label="ترتيب عشوائي للأسئلة" checked={shuffle} onChange={setShuffle} />
         <Toggle id="m-timer" label="تفعيل المؤقت" checked={timer} onChange={setTimer} />
         {timer && (
           <label className="block">

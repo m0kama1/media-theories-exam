@@ -1,12 +1,10 @@
-import type { AttemptRecord, Session, TheoryStat } from '../types'
+import type { AttemptRecord, Session } from '../types'
 import { byId } from './bank'
 
 const PREFIX = 'mte:'
 export const KEYS = {
   exam: PREFIX + 'exam-session',
-  study: PREFIX + 'study-session',
   history: PREFIX + 'history',
-  theoryStats: PREFIX + 'theory-stats',
   theme: PREFIX + 'theme',
 } as const
 
@@ -35,7 +33,7 @@ export function loadSession(key: string): Session | null {
   const s = load<Session | null>(key, null)
   if (!s || !Array.isArray(s.questionIds) || !s.questionIds.length) return null
   if (!s.questionIds.every((id) => byId.has(id))) return null
-  return { ...s, revealed: s.revealed ?? [], flagged: s.flagged ?? [] }
+  return { ...s, flagged: s.flagged ?? [], optionOrder: s.optionOrder ?? {} }
 }
 
 export const loadHistory = () => load<AttemptRecord[]>(KEYS.history, [])
@@ -45,15 +43,8 @@ export function pushHistory(a: AttemptRecord): AttemptRecord[] {
   return h
 }
 
-export const loadTheoryStats = () => load<Record<string, TheoryStat>>(KEYS.theoryStats, {})
-export function recordTheoryAnswers(entries: { theory: string; correct: boolean }[]) {
-  const stats = loadTheoryStats()
-  for (const e of entries) {
-    const s = stats[e.theory] ?? { attempts: 0, wrong: 0 }
-    s.attempts++
-    if (!e.correct) s.wrong++
-    stats[e.theory] = s
-  }
-  save(KEYS.theoryStats, stats)
-  return stats
+/** Remove data left by earlier versions (study mode, theory stats). */
+export function cleanupLegacy() {
+  save(PREFIX + 'study-session', null)
+  save(PREFIX + 'theory-stats', null)
 }

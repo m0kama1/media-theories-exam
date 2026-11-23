@@ -1,24 +1,32 @@
-import { KEYS, loadSession, pushHistory, loadHistory, recordTheoryAnswers, save } from '../lib/storage'
-import { createSession, toAttempt } from '../lib/exam'
+import { KEYS, loadSession, pushHistory, loadHistory, save, cleanupLegacy } from '../lib/storage'
+import { createExam, toAttempt } from '../lib/exam'
 
 describe('الحفظ المحلي', () => {
-  it('يستعيد جلسة محفوظة', () => {
-    const s = createSession({ mode: 'exam', title: 'x', questionIds: [1, 2, 3] })
+  it('يستعيد الجلسة بنفس ترتيب الأسئلة والاختيارات', () => {
+    const s = createExam()
     s.answers = { 1: 3 }
     save(KEYS.exam, s)
-    expect(loadSession(KEYS.exam)?.answers).toEqual({ 1: 3 })
+    const r = loadSession(KEYS.exam)!
+    expect(r.answers).toEqual({ 1: 3 })
+    expect(r.questionIds).toEqual(s.questionIds)
+    expect(r.optionOrder).toEqual(s.optionOrder)
   })
   it('يتجاهل البيانات التالفة أو أسئلة غير موجودة', () => {
     localStorage.setItem(KEYS.exam, '{not json')
     expect(loadSession(KEYS.exam)).toBeNull()
-    save(KEYS.exam, { ...createSession({ mode: 'exam', title: 'x', questionIds: [1] }), questionIds: [999] })
+    save(KEYS.exam, { ...createExam(), questionIds: [999] })
     expect(loadSession(KEYS.exam)).toBeNull()
   })
-  it('سجل المحاولات وإحصاءات النظريات', () => {
-    const s = createSession({ mode: 'exam', title: 'x', questionIds: [1] })
+  it('سجل المحاولات يحفظ ترتيب الاختيارات', () => {
+    const s = createExam()
     pushHistory(toAttempt(s))
-    expect(loadHistory()).toHaveLength(1)
-    const st = recordTheoryAnswers([{ theory: 'التأطير', correct: false }, { theory: 'التأطير', correct: true }])
-    expect(st['التأطير']).toEqual({ attempts: 2, wrong: 1 })
+    expect(loadHistory()[0].optionOrder).toEqual(s.optionOrder)
+  })
+  it('يحذف بيانات الإصدار السابق', () => {
+    localStorage.setItem('mte:study-session', '{}')
+    localStorage.setItem('mte:theory-stats', '{}')
+    cleanupLegacy()
+    expect(localStorage.getItem('mte:study-session')).toBeNull()
+    expect(localStorage.getItem('mte:theory-stats')).toBeNull()
   })
 })

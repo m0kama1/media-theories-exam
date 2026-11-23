@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useApp } from '../state'
 import { OPTION_LETTERS } from '../lib/bank'
-import { formatDuration, grade, gradeLabel } from '../lib/exam'
-import { navigate } from '../lib/router'
+import { formatDuration, grade, gradeLabel, orderOf, type QStatus } from '../lib/exam'
+import { feedbackFor } from '../lib/feedback'
 import { Icon } from '../components/Icon'
-import { BarList, Donut, Legend, Stat } from '../components/ui'
-import { StartExamModal, type StartRequest } from '../components/StartExamModal'
+import { OptionButton, type OptionState } from '../components/OptionButton'
+import { BarList, DifficultyChip, Donut, Legend, Stat } from '../components/ui'
+import { StartExamModal } from '../components/StartExamModal'
 
 const toneCls = {
   great: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
@@ -14,9 +15,30 @@ const toneCls = {
   low: 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300',
 }
 
+type Filter = 'all' | 'wrong' | 'skipped' | 'correct'
+const FILTERS: { k: Filter; label: string }[] = [
+  { k: 'all', label: 'كل الأسئلة' },
+  { k: 'wrong', label: 'الخاطئة' },
+  { k: 'skipped', label: 'المتروكة' },
+  { k: 'correct', label: 'الصحيحة' },
+]
+
+const statusBadge: Record<QStatus, [string, string]> = {
+  correct: ['إجابة صحيحة', 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'],
+  wrong: ['إجابة خاطئة', 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300'],
+  skipped: ['لم تُجب', 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300'],
+}
+
+export function optionState(orig: number, correct: number, chosen: number | undefined): OptionState {
+  if (orig === correct) return chosen === orig ? 'correct' : 'missed'
+  if (orig === chosen) return 'wrong'
+  return 'dim'
+}
+
 export function Results({ id }: { id: string | null }) {
   const { history } = useApp()
-  const [req, setReq] = useState<StartRequest | null>(null)
+  const [startOpen, setStartOpen] = useState(false)
+  const [filter, setFilter] = useState<Filter>('all')
   const attempt = history.find((a) => a.id === id) ?? (id ? undefined : history[0])
   if (!attempt) {
     return (
@@ -28,17 +50,19 @@ export function Results({ id }: { id: string | null }) {
   }
   const g = grade(attempt.questionIds, attempt.answers)
   const lbl = gradeLabel(g.percent)
-  const wrongIds = g.items.filter((i) => i.status !== 'correct').map((i) => i.question.id)
-  const theoryRows = g.byTheory
+  const items = g.items
+    .map((it, n) => ({ ...it, n: n + 1 }))
+    .filter((it) => filter === 'all' || it.status === filter)
+  const counts: Record<Filter, number> = { all: g.total, wrong: g.wrong, skipped: g.skipped, correct: g.correct }
+  const half = Math.ceil(g.byTheory.length / 2)
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <StartExamModal req={req} onClose={() => setReq(null)} />
+      <StartExamModal open={startOpen} onClose={() => setStartOpen(false)} />
 
-      {/* Print header */}
       <div className="hidden print:block">
         <h1 className="text-xl font-bold">تقرير نتيجة – امتحان نظريات التأثير الإعلامي</h1>
-        <p className="text-sm">{attempt.title} · {new Date(attempt.submittedAt).toLocaleString('ar-EG')}</p>
+        <p className="text-sm">{new Date(attempt.submittedAt).toLocaleString('ar-EG')}</p>
       </div>
 
       <section className="card overflow-hidden">
@@ -49,7 +73,7 @@ export function Results({ id }: { id: string | null }) {
               <span className={`chip ${toneCls[lbl.tone]} !text-sm`}>{lbl.label}</span>
               {attempt.timedOut && <span className="chip bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">سُلِّم تلقائيًا بانتهاء الوقت</span>}
             </div>
-            <h1 className="mt-2 text-2xl font-bold sm:text-3xl">{attempt.title}</h1>
+            <h1 className="mt-2 text-2xl font-bold sm:text-3xl">نتيجة الامتحان</h1>
             <div className="mt-2 text-5xl font-bold tabular-nums text-brand-600 dark:text-brand-300" data-testid="score">
               {g.correct}<span className="text-2xl text-slate-400"> / {g.total}</span>
             </div>
@@ -57,10 +81,8 @@ export function Results({ id }: { id: string | null }) {
               {new Date(attempt.submittedAt).toLocaleString('ar-EG', { dateStyle: 'full', timeStyle: 'short' })} · المدة {formatDuration(attempt.durationSeconds)}
             </p>
             <div className="mt-5 flex flex-wrap gap-2 print:hidden">
-              <button className="btn-primary" onClick={() => navigate(`/review?id=${attempt.id}`)}><Icon name="book" className="h-4 w-4" /> مراجعة كل الأسئلة</button>
-              <button className="btn-ghost" disabled={!wrongIds.length} onClick={() => navigate(`/review?id=${attempt.id}&filter=wrong`)}><Icon name="x" className="h-4 w-4" /> مراجعة الأخطاء فقط</button>
-              <button className="btn-ghost" onClick={() => setReq({ title: attempt.title.startsWith('إعادة: ') ? attempt.title : `إعادة: ${attempt.title}`, questionIds: attempt.questionIds })}><Icon name="refresh" className="h-4 w-4" /> إعادة الامتحان</button>
-              <button className="btn-ghost" disabled={!wrongIds.length} onClick={() => setReq({ title: `اختبار الأخطاء (${wrongIds.length})`, questionIds: wrongIds })}><Icon name="target" className="h-4 w-4" /> إعادة اختبار الأخطاء</button>
+              <button className="btn-primary" onClick={() => document.getElementById('review')?.scrollIntoView({ behavior: 'smooth' })}><Icon name="book" className="h-4 w-4" /> مراجعة الإجابات والملاحظات</button>
+              <button className="btn-ghost" onClick={() => setStartOpen(true)}><Icon name="refresh" className="h-4 w-4" /> امتحان جديد</button>
               <button className="btn-ghost" onClick={() => window.print()}><Icon name="printer" className="h-4 w-4" /> طباعة / PDF</button>
             </div>
           </div>
@@ -89,26 +111,62 @@ export function Results({ id }: { id: string | null }) {
       <section className="card p-5">
         <div className="mb-1 flex flex-wrap items-center justify-between gap-2"><h2 className="font-bold">الأداء حسب النظرية</h2><Legend /></div>
         <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">مرتبة من الأضعف إلى الأقوى.</p>
-        <div className="grid gap-x-10 gap-y-3 md:grid-cols-2"><BarList rows={theoryRows.slice(0, Math.ceil(theoryRows.length / 2))} /><BarList rows={theoryRows.slice(Math.ceil(theoryRows.length / 2))} /></div>
+        <div className="grid gap-x-10 gap-y-3 md:grid-cols-2"><BarList rows={g.byTheory.slice(0, half)} /><BarList rows={g.byTheory.slice(half)} /></div>
       </section>
 
-      {/* Printable answer sheet */}
-      <section className="hidden print:block">
-        <h2 className="mb-2 mt-4 font-bold">ورقة الإجابات</h2>
-        <table className="w-full border-collapse text-xs">
-          <thead><tr className="border-b"><th className="p-1 text-start">#</th><th className="p-1 text-start">النظرية</th><th className="p-1">إجابتك</th><th className="p-1">الصحيحة</th><th className="p-1">النتيجة</th></tr></thead>
-          <tbody>
-            {g.items.map((it, i) => (
-              <tr key={it.question.id} className="border-b border-slate-200">
-                <td className="p-1">{i + 1}</td>
-                <td className="p-1">{it.question.theory}</td>
-                <td className="p-1 text-center">{it.chosen !== undefined ? OPTION_LETTERS[it.chosen] : '—'}</td>
-                <td className="p-1 text-center">{OPTION_LETTERS[it.question.correctIndex]}</td>
-                <td className="p-1 text-center">{it.status === 'correct' ? '✓' : it.status === 'wrong' ? '✗' : 'متروك'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Review */}
+      <section id="review" className="scroll-mt-20">
+        <h2 className="mb-1 text-xl font-bold">مراجعة الإجابات</h2>
+        <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">لكل سؤال: إجابتك، والإجابة الصحيحة، وملاحظة تعليمية مختصرة.</p>
+        <div className="mb-5 flex flex-wrap gap-2 print:hidden" role="tablist">
+          {FILTERS.map((f) => (
+            <button key={f.k} role="tab" aria-selected={filter === f.k} onClick={() => setFilter(f.k)}
+              className={`rounded-xl px-3.5 py-2 text-sm font-semibold transition ${filter === f.k ? 'bg-brand-600 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700'}`}>
+              {f.label} <span className="tabular-nums opacity-75">({counts[f.k]})</span>
+            </button>
+          ))}
+        </div>
+        {items.length === 0 && <div className="card p-8 text-center text-slate-500">لا توجد أسئلة في هذا التصنيف.</div>}
+        <div className="space-y-5">
+          {items.map(({ question: q, chosen, status, n }) => {
+            const order = orderOf(attempt.optionOrder, q)
+            const letter = (orig: number) => OPTION_LETTERS[order.indexOf(orig)]
+            const fb = feedbackFor(q, chosen)
+            return (
+              <article key={q.id} className="card p-5 sm:p-6" data-testid="review-item">
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <span className="chip bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">سؤال {n}</span>
+                  <span className={`chip ${statusBadge[status][1]}`}>{statusBadge[status][0]}</span>
+                  <DifficultyChip d={q.difficulty} />
+                  <span className="chip bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">{q.theory}</span>
+                </div>
+                <h3 className="mb-4 font-semibold leading-loose">{q.question}</h3>
+                <div className="grid gap-2">
+                  {order.map((orig, i) => <OptionButton key={orig} index={i} text={q.options[orig]} state={optionState(orig, q.correctIndex, chosen)} disabled />)}
+                </div>
+
+                <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+                  <div className={`rounded-xl p-3 ${status === 'correct' ? 'bg-emerald-50 dark:bg-emerald-500/10' : status === 'wrong' ? 'bg-rose-50 dark:bg-rose-500/10' : 'bg-amber-50 dark:bg-amber-500/10'}`}>
+                    <dt className="text-xs text-slate-500 dark:text-slate-400">إجابتك</dt>
+                    <dd className="font-semibold" data-testid="my-answer">{chosen !== undefined ? `(${letter(chosen)}) ${q.options[chosen]}` : 'لم تُجب عن هذا السؤال'}</dd>
+                  </div>
+                  <div className="rounded-xl bg-emerald-50 p-3 dark:bg-emerald-500/10">
+                    <dt className="text-xs text-slate-500 dark:text-slate-400">الإجابة الصحيحة</dt>
+                    <dd className="font-semibold text-emerald-800 dark:text-emerald-300" data-testid="correct-answer">({letter(q.correctIndex)}) {q.options[q.correctIndex]}</dd>
+                  </div>
+                </dl>
+
+                <div className="mt-3 space-y-1.5 rounded-xl bg-brand-50 p-4 text-sm leading-relaxed text-brand-950 dark:bg-brand-500/10 dark:text-brand-50" data-testid="note">
+                  <p><b className="text-emerald-700 dark:text-emerald-400">✓ لماذا هي الصحيحة؟ </b>{fb.why}</p>
+                  {fb.wrongWhy && <p><b className="text-rose-700 dark:text-rose-400">✗ لماذا اختيارك خطأ؟ </b>{fb.wrongWhy}</p>}
+                  {fb.extra && <p><b>ملاحظة: </b>{fb.extra}</p>}
+                  <p><b className="text-amber-700 dark:text-amber-400">💡 للتذكّر: </b>{fb.tip}</p>
+                </div>
+                <p className="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400"><b>تفسير بنك الأسئلة:</b> {q.explanation}</p>
+              </article>
+            )
+          })}
+        </div>
       </section>
     </div>
   )

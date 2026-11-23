@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../state'
 import { getQuestion } from '../lib/bank'
-import { answeredCount, formatDuration } from '../lib/exam'
+import { answeredCount, formatDuration, orderOf } from '../lib/exam'
 import { navigate } from '../lib/router'
 import { Icon } from '../components/Icon'
 import { OptionButton } from '../components/OptionButton'
@@ -38,9 +38,9 @@ export function Exam() {
     const onKey = (e: KeyboardEvent) => {
       if (confirm || quit || (e.target as HTMLElement)?.tagName === 'INPUT') return
       const qid = exam.questionIds[exam.current]
-      if (e.key === 'ArrowLeft') goTo('exam', exam.current + 1)
-      else if (e.key === 'ArrowRight') goTo('exam', exam.current - 1)
-      else if (['1', '2', '3', '4'].includes(e.key)) answer('exam', qid, Number(e.key) - 1)
+      if (e.key === 'ArrowLeft') goTo(exam.current + 1)
+      else if (e.key === 'ArrowRight') goTo(exam.current - 1)
+      else if (['1', '2', '3', '4'].includes(e.key)) { const ord = orderOf(exam.optionOrder, getQuestion(qid)); answer(qid, ord[Number(e.key) - 1]) }
       else if (e.key.toLowerCase() === 'f') toggleFlag(qid)
     }
     window.addEventListener('keydown', onKey)
@@ -86,7 +86,7 @@ export function Exam() {
           return (
             <button
               key={id}
-              onClick={() => { goTo('exam', i); setNavOpen(false) }}
+              onClick={() => { goTo(i); setNavOpen(false) }}
               aria-label={`السؤال ${i + 1}${a ? '، مُجاب' : '، غير مُجاب'}${f ? '، عليه علامة' : ''}`}
               aria-current={cur ? 'step' : undefined}
               className={`relative grid aspect-square place-items-center rounded-lg text-xs font-semibold tabular-nums transition ${
@@ -138,13 +138,13 @@ export function Exam() {
           </div>
           <h2 className="mb-6 text-lg font-semibold leading-loose sm:text-xl" data-testid="question-text">{q.question}</h2>
           <div className="space-y-3" role="group" aria-label="الاختيارات">
-            {q.options.map((o, i) => (
-              <OptionButton key={i} index={i} text={o} state={chosen === i ? 'selected' : 'idle'} onClick={() => answer('exam', qid, i)} />
+            {orderOf(exam.optionOrder, q).map((orig, i) => (
+              <OptionButton key={orig} index={i} text={q.options[orig]} state={chosen === orig ? 'selected' : 'idle'} onClick={() => answer(qid, orig)} />
             ))}
           </div>
 
           <div className="mt-7 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-5 dark:border-slate-800">
-            <button className="btn-ghost" disabled={exam.current === 0} onClick={() => goTo('exam', exam.current - 1)}>
+            <button className="btn-ghost" disabled={exam.current === 0} onClick={() => goTo(exam.current - 1)}>
               <Icon name="prev" className="h-4 w-4" /> السابق
             </button>
             <button
@@ -158,7 +158,7 @@ export function Exam() {
               {isLast ? (
                 <button className="btn-primary" onClick={() => setConfirm(true)}>تسليم الامتحان</button>
               ) : (
-                <button className="btn-primary" onClick={() => goTo('exam', exam.current + 1)}>
+                <button className="btn-primary" onClick={() => goTo(exam.current + 1)}>
                   التالي <Icon name="next" className="h-4 w-4" />
                 </button>
               )}
@@ -206,7 +206,7 @@ export function Exam() {
       <Modal open={quit} onClose={() => setQuit(false)} title="إلغاء الامتحان؟">
         <p className="mb-5 text-sm text-slate-600 dark:text-slate-400">ستُحذف إجاباتك في هذا الامتحان ولن تُسجَّل نتيجة.</p>
         <div className="flex gap-2">
-          <button className="btn-danger flex-1" onClick={() => { discard('exam'); setQuit(false); navigate('/') }}>إلغاء الامتحان</button>
+          <button className="btn-danger flex-1" onClick={() => { discard(); setQuit(false); navigate('/') }}>إلغاء الامتحان</button>
           <button className="btn-ghost" onClick={() => setQuit(false)}>تراجع</button>
         </div>
       </Modal>

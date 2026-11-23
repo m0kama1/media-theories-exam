@@ -1,9 +1,7 @@
-export type Difficulty = 'متوسط' | 'تطبيقي' | 'صعب'
-
 export interface Question {
   id: number
   section: string
-  difficulty: Difficulty | string
+  difficulty: string
   question: string
   options: string[]
   correctIndex: number
@@ -17,18 +15,18 @@ export interface QuestionBank {
   questions: Question[]
 }
 
-export type SessionMode = 'exam' | 'study'
+/** question id -> display order: optionOrder[qid][displayIndex] = original option index */
+export type OptionOrder = Record<number, number[]>
 
 export interface Session {
   id: string
-  mode: SessionMode
   title: string
+  /** randomized question order */
   questionIds: number[]
-  /** question id -> chosen option index */
+  optionOrder: OptionOrder
+  /** question id -> chosen ORIGINAL option index */
   answers: Record<number, number>
   flagged: number[]
-  /** study mode: ids whose answer has been revealed */
-  revealed: number[]
   current: number
   startedAt: number
   timerEnabled: boolean
@@ -40,14 +38,10 @@ export interface AttemptRecord {
   id: string
   title: string
   questionIds: number[]
+  optionOrder?: OptionOrder
   answers: Record<number, number>
   startedAt: number
   submittedAt: number
   durationSeconds: number
   timedOut: boolean
-}
-
-export interface TheoryStat {
-  attempts: number
-  wrong: number
 }

@@ -1,22 +1,5 @@
-import type { AttemptRecord, Question, Session, SessionMode } from '../types'
+import type { AttemptRecord, OptionOrder, Question, Session } from '../types'
 import { getQuestion, questions } from './bank'
-
-export interface ExamFilter {
-  sections?: string[]
-  difficulties?: string[]
-  theories?: string[]
-  ids?: number[]
-}
-
-export function filterQuestions(f: ExamFilter): Question[] {
-  return questions.filter(
-    (q) =>
-      (!f.ids || f.ids.includes(q.id)) &&
-      (!f.sections?.length || f.sections.includes(q.section)) &&
-      (!f.difficulties?.length || f.difficulties.includes(q.difficulty)) &&
-      (!f.theories?.length || f.theories.includes(q.theory)),
-  )
-}
 
 export function shuffle<T>(xs: T[], rand: () => number = Math.random): T[] {
   const a = xs.slice()
@@ -29,29 +12,33 @@ export function shuffle<T>(xs: T[], rand: () => number = Math.random): T[] {
 
 export const newId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 
-export function createSession(opts: {
-  mode: SessionMode
-  title: string
-  questionIds: number[]
-  shuffle?: boolean
-  timerEnabled?: boolean
-  timeLimitMinutes?: number
-}): Session {
-  if (!opts.questionIds.length) throw new Error('لا توجد أسئلة مطابقة')
+export const EXAM_TITLE = 'امتحان نظريات التأثير الإعلامي – 100 سؤال'
+
+/** A new exam: all 100 questions, with question order AND option order randomized. */
+export function createExam(opts: { timerEnabled?: boolean; timeLimitMinutes?: number; rand?: () => number } = {}): Session {
+  const rand = opts.rand ?? Math.random
+  const questionIds = shuffle(questions.map((q) => q.id), rand)
+  const optionOrder: OptionOrder = {}
+  for (const q of questions) optionOrder[q.id] = shuffle(q.options.map((_, i) => i), rand)
   return {
     id: newId(),
-    mode: opts.mode,
-    title: opts.title,
-    questionIds: opts.shuffle ? shuffle(opts.questionIds) : opts.questionIds.slice(),
+    title: EXAM_TITLE,
+    questionIds,
+    optionOrder,
     answers: {},
     flagged: [],
-    revealed: [],
     current: 0,
     startedAt: Date.now(),
     timerEnabled: !!opts.timerEnabled,
     timeLimitSeconds: Math.max(1, Math.round((opts.timeLimitMinutes ?? 0) * 60)),
     elapsedSeconds: 0,
   }
+}
+
+/** Display order of a question's options (identity when no order was stored). */
+export function orderOf(order: OptionOrder | undefined, q: Question): number[] {
+  const o = order?.[q.id]
+  return o && o.length === q.options.length ? o : q.options.map((_, i) => i)
 }
 
 export type QStatus = 'correct' | 'wrong' | 'skipped'
@@ -132,6 +119,7 @@ export function toAttempt(s: Session, timedOut = false): AttemptRecord {
     id: s.id,
     title: s.title,
     questionIds: s.questionIds,
+    optionOrder: s.optionOrder,
     answers: s.answers,
     startedAt: s.startedAt,
     submittedAt: Date.now(),
