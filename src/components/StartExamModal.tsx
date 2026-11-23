@@ -20,7 +20,8 @@ export function StartExamModal({ open, onClose }: { open: boolean; onClose: () =
       <ul className="mb-5 space-y-1.5 text-sm text-slate-600 dark:text-slate-400">
         <li>• 100 سؤال، سؤال واحد في كل شاشة.</li>
         <li>• ترتيب الأسئلة والاختيارات عشوائي ويختلف في كل محاولة.</li>
-        <li>• الإجابات والملاحظات التعليمية تظهر بعد التسليم فقط.</li>
+        <li>• بعد اختيار الإجابة يظهر التصحيح وملاحظة قصيرة فورًا، ولا يمكن تغيير الإجابة.</li>
+        <li>• يُفعَّل زر «السؤال التالي» بعد الإجابة، والنتيجة الكاملة بعد التسليم.</li>
       </ul>
       <div className="space-y-4">
         <Toggle id="m-timer" label="تفعيل المؤقت" checked={timer} onChange={setTimer} />

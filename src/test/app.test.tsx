@@ -37,7 +37,7 @@ describe('تدفق الامتحان', () => {
     expect(window.location.hash).toBe('#/')
   })
 
-  it('الامتحان: ترتيب عشوائي، لا تغذية راجعة أثناء الحل، حفظ، تسليم، ومراجعة بالملاحظات', async () => {
+  it('الامتحان: ترتيب عشوائي، تصحيح فوري مع قفل الإجابة، حفظ، تسليم، ومراجعة بالملاحظات', async () => {
     const user = userEvent.setup()
     const view = mount()
     await startExam(user)
@@ -51,18 +51,44 @@ describe('تدفق الامتحان', () => {
     const shown = optionButtons().map((b) => b.querySelector('.flex-1')!.textContent)
     expect(shown).toEqual(s.optionOrder[q1.id].map((i) => q1.options[i]))
 
-    // answer Q1 correctly by clicking the correct TEXT wherever it is
-    await user.click(optionByText(q1.options[q1.correctIndex]))
-    expect(document.querySelector('[data-state="correct"],[data-state="wrong"]')).toBeNull()
-    expect(screen.queryByTestId('note')).toBeNull()
-    expect(screen.queryByText(/لماذا/)).toBeNull()
+    // before answering: no feedback, Next disabled
+    expect(screen.queryByTestId('feedback')).toBeNull()
+    expect(screen.getByRole('button', { name: /السؤال التالي/ })).toBeDisabled()
 
-    // Q2 wrong + flag
-    await user.click(screen.getByRole('button', { name: /التالي/ }))
+    // answer Q1 correctly -> immediate "correct" feedback with the note, Next enabled
+    await user.click(optionByText(q1.options[q1.correctIndex]))
+    const fb1 = screen.getByTestId('feedback')
+    expect(fb1).toHaveAttribute('data-result', 'correct')
+    expect(fb1).toHaveTextContent('إجابة صحيحة')
+    expect(within(fb1).getByTestId('note')).toHaveTextContent(q1.explanation)
+    expect(within(fb1).getByTestId('ref')).toHaveTextContent(q1.ref)
+    expect(screen.getByRole('button', { name: /السؤال التالي/ })).toBeEnabled()
+
+    // answer is locked: options disabled and state unchanged
+    for (const b of optionButtons()) expect(b).toBeDisabled()
+    const other = q1.options[(q1.correctIndex + 1) % 4]
+    await user.click(optionByText(other))
+    expect(session().answers[q1.id]).toBe(q1.correctIndex)
+    expect(screen.getByTestId('live-right')).toHaveTextContent('1')
+
+    // Q2 wrong -> immediate "wrong" feedback naming the correct option
+    await user.click(screen.getByRole('button', { name: /السؤال التالي/ }))
     const q2 = currentQ()
+    expect(screen.queryByTestId('feedback')).toBeNull()
     const wrong2 = q2.options[(q2.correctIndex + 1) % 4]
     await user.click(optionByText(wrong2))
+    const fb2 = screen.getByTestId('feedback')
+    expect(fb2).toHaveAttribute('data-result', 'wrong')
+    expect(fb2).toHaveTextContent('إجابة خاطئة')
+    expect(fb2).toHaveTextContent(q2.options[q2.correctIndex])
+    expect(optionByText(wrong2)).toHaveAttribute('data-state', 'wrong')
+    expect(optionByText(q2.options[q2.correctIndex])).toHaveAttribute('data-state', 'missed')
+    expect(screen.getByTestId('live-wrong')).toHaveTextContent('1')
     await user.click(screen.getByRole('button', { name: /وضع علامة/ }))
+
+    // keyboard cannot change a locked answer
+    fireEvent.keyDown(window, { key: '1' })
+    expect(session().answers[q2.id]).toBe(q2.options.indexOf(wrong2))
 
     // reload keeps order & answers
     view.unmount()
@@ -71,6 +97,7 @@ describe('تدفق الامتحان', () => {
     expect(screen.getByTestId('question-text')).toHaveTextContent(q2.question)
     expect(screen.getByTestId('answered')).toHaveTextContent('2')
     expect(session().questionIds).toEqual(s.questionIds)
+    expect(screen.getByTestId('feedback')).toHaveAttribute('data-result', 'wrong')
 
     await user.click(screen.getAllByRole('button', { name: 'تسليم الامتحان' })[0])
     const dlg = screen.getByRole('dialog', { name: 'تأكيد تسليم الامتحان' })

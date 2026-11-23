@@ -38,7 +38,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const start = useCallback((s: Session) => setExam(s), [])
   const answer = useCallback((qid: number, option: number) => {
-    setExam((s) => (s ? { ...s, answers: { ...s.answers, [qid]: option } } : s))
+    // An answer is final once chosen: feedback is shown immediately, so it cannot be changed.
+    setExam((s) => (s && s.answers[qid] === undefined ? { ...s, answers: { ...s.answers, [qid]: option } } : s))
   }, [])
   const toggleFlag = useCallback((qid: number) => {
     setExam((s) =>

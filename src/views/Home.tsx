@@ -23,7 +23,7 @@ export function Home() {
           <span className="chip bg-white/15 text-white ring-1 ring-white/20">تمهيدي ماجستير الصحافة الإخبارية</span>
           <h1 className="mt-5 text-3xl font-bold leading-tight sm:text-4xl">{bank.title}</h1>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-brand-100">
-            {questions.length} سؤال اختيار من متعدد · ترتيب عشوائي للأسئلة والاختيارات في كل محاولة · النتيجة والتصحيح والملاحظات بعد التسليم فقط
+            {questions.length} سؤال اختيار من متعدد · ترتيب عشوائي في كل محاولة · تصحيح فوري وملاحظة قصيرة بعد كل إجابة
           </p>
           <button
             onClick={() => (exam ? navigate('/exam') : setStartOpen(true))}

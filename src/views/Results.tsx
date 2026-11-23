@@ -3,7 +3,7 @@ import { useApp } from '../state'
 import { OPTION_LETTERS } from '../lib/bank'
 import { formatDuration, grade, gradeLabel, orderOf, type QStatus } from '../lib/exam'
 import { Icon } from '../components/Icon'
-import { OptionButton, type OptionState } from '../components/OptionButton'
+import { OptionButton, optionState } from '../components/OptionButton'
 import { BarList, DifficultyChip, Donut, Legend, Stat } from '../components/ui'
 import { StartExamModal } from '../components/StartExamModal'
 
@@ -26,12 +26,6 @@ const statusBadge: Record<QStatus, [string, string]> = {
   correct: ['إجابة صحيحة', 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'],
   wrong: ['إجابة خاطئة', 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300'],
   skipped: ['لم تُجب', 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300'],
-}
-
-export function optionState(orig: number, correct: number, chosen: number | undefined): OptionState {
-  if (orig === correct) return chosen === orig ? 'correct' : 'missed'
-  if (orig === chosen) return 'wrong'
-  return 'dim'
 }
 
 export function Results({ id }: { id: string | null }) {

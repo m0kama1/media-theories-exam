@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../state'
-import { getQuestion } from '../lib/bank'
-import { answeredCount, formatDuration, orderOf } from '../lib/exam'
+import { OPTION_LETTERS, getQuestion } from '../lib/bank'
+import { answeredCount, formatDuration, orderOf, statusOf } from '../lib/exam'
 import { navigate } from '../lib/router'
 import { Icon } from '../components/Icon'
-import { OptionButton } from '../components/OptionButton'
+import { OptionButton, optionState } from '../components/OptionButton'
 import { DifficultyChip, Modal, ProgressBar } from '../components/ui'
 
 export function Exam() {
@@ -14,6 +14,16 @@ export function Exam() {
   const [navOpen, setNavOpen] = useState(false)
   const [showTimer, setShowTimer] = useState(true)
   const submitted = useRef(false)
+  const feedbackRef = useRef<HTMLDivElement>(null)
+  const curAnswered = !!exam && exam.answers[exam.questionIds[exam.current]] !== undefined
+  const curId = exam?.questionIds[exam.current]
+
+  // Bring the feedback into view right after answering (mainly for phones).
+  const justAnswered = useRef<number | null>(null)
+  useEffect(() => {
+    if (curAnswered && justAnswered.current === curId) feedbackRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    justAnswered.current = null
+  }, [curAnswered, curId])
 
   // Clock: counts elapsed time while the page is open.
   useEffect(() => {
@@ -38,9 +48,9 @@ export function Exam() {
     const onKey = (e: KeyboardEvent) => {
       if (confirm || quit || (e.target as HTMLElement)?.tagName === 'INPUT') return
       const qid = exam.questionIds[exam.current]
-      if (e.key === 'ArrowLeft') goTo(exam.current + 1)
+      if (e.key === 'ArrowLeft') { if (exam.answers[qid] !== undefined) goTo(exam.current + 1) }
       else if (e.key === 'ArrowRight') goTo(exam.current - 1)
-      else if (['1', '2', '3', '4'].includes(e.key)) { const ord = orderOf(exam.optionOrder, getQuestion(qid)); answer(qid, ord[Number(e.key) - 1]) }
+      else if (['1', '2', '3', '4'].includes(e.key) && exam.answers[qid] === undefined) { const ord = orderOf(exam.optionOrder, getQuestion(qid)); answer(qid, ord[Number(e.key) - 1]) }
       else if (e.key.toLowerCase() === 'f') toggleFlag(qid)
     }
     window.addEventListener('keydown', onKey)
@@ -64,6 +74,17 @@ export function Exam() {
   const done = answeredCount(exam)
   const unanswered = total - done
   const isLast = exam.current === total - 1
+  const answered = chosen !== undefined
+  const order = orderOf(exam.optionOrder, q)
+  const letter = (orig: number) => OPTION_LETTERS[order.indexOf(orig)]
+  const live = exam.questionIds.reduce(
+    (acc, id) => {
+      const c = exam.answers[id]
+      if (c !== undefined) acc[c === getQuestion(id).correctIndex ? 'right' : 'wrong']++
+      return acc
+    },
+    { right: 0, wrong: 0 },
+  )
 
   const doSubmit = () => {
     submitted.current = true
@@ -81,16 +102,17 @@ export function Exam() {
       <div className="grid grid-cols-8 gap-1.5 sm:grid-cols-10 lg:grid-cols-6 xl:grid-cols-7">
         {exam.questionIds.map((id, i) => {
           const a = exam.answers[id] !== undefined
+          const ok = a && exam.answers[id] === getQuestion(id).correctIndex
           const f = exam.flagged.includes(id)
           const cur = i === exam.current
           return (
             <button
               key={id}
               onClick={() => { goTo(i); setNavOpen(false) }}
-              aria-label={`السؤال ${i + 1}${a ? '، مُجاب' : '، غير مُجاب'}${f ? '، عليه علامة' : ''}`}
+              aria-label={`السؤال ${i + 1}${a ? (ok ? '، مُجاب صحيح' : '، مُجاب خطأ') : '، غير مُجاب'}${f ? '، عليه علامة' : ''}`}
               aria-current={cur ? 'step' : undefined}
               className={`relative grid aspect-square place-items-center rounded-lg text-xs font-semibold tabular-nums transition ${
-                a ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+                a ? (ok ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white') : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
               } ${cur ? 'ring-2 ring-amber-400 ring-offset-2 ring-offset-white dark:ring-offset-slate-900' : ''}`}
             >
               {i + 1}
@@ -99,8 +121,9 @@ export function Exam() {
           )
         })}
       </div>
-      <div className="mt-4 grid grid-cols-3 gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-        <span className="flex items-center gap-1"><i className="h-3 w-3 rounded bg-brand-600" /> مُجاب</span>
+      <div className="mt-4 grid grid-cols-4 gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+        <span className="flex items-center gap-1"><i className="h-3 w-3 rounded bg-emerald-500" /> صحيح</span>
+        <span className="flex items-center gap-1"><i className="h-3 w-3 rounded bg-rose-500" /> خطأ</span>
         <span className="flex items-center gap-1"><i className="h-3 w-3 rounded bg-slate-200 dark:bg-slate-700" /> متبقٍّ</span>
         <span className="flex items-center gap-1"><i className="h-3 w-3 rounded-full bg-amber-400" /> مُعلَّم</span>
       </div>
@@ -114,7 +137,7 @@ export function Exam() {
         <div className="flex flex-wrap items-center gap-3">
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-bold">{exam.title}</div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">أُجيب <b className="tabular-nums" data-testid="answered">{done}</b> · متبقٍّ <b className="tabular-nums">{unanswered}</b> · مُعلَّم <b className="tabular-nums">{exam.flagged.length}</b></div>
+            <div className="text-xs text-slate-500 dark:text-slate-400">أُجيب <b className="tabular-nums" data-testid="answered">{done}</b> · متبقٍّ <b className="tabular-nums">{unanswered}</b> · مُعلَّم <b className="tabular-nums">{exam.flagged.length}</b> · <span className="text-emerald-600 dark:text-emerald-400">✓ <b className="tabular-nums" data-testid="live-right">{live.right}</b></span> · <span className="text-rose-600 dark:text-rose-400">✗ <b className="tabular-nums" data-testid="live-wrong">{live.wrong}</b></span></div>
           </div>
           {showTimer && (
             <div className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-bold tabular-nums ${remaining !== null && remaining < 60 ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300' : 'bg-slate-100 dark:bg-slate-800'}`} aria-live="polite">
@@ -138,10 +161,34 @@ export function Exam() {
           </div>
           <h2 className="mb-6 text-lg font-semibold leading-loose sm:text-xl" data-testid="question-text">{q.question}</h2>
           <div className="space-y-3" role="group" aria-label="الاختيارات">
-            {orderOf(exam.optionOrder, q).map((orig, i) => (
-              <OptionButton key={orig} index={i} text={q.options[orig]} state={chosen === orig ? 'selected' : 'idle'} onClick={() => answer(qid, orig)} />
+            {order.map((orig, i) => (
+              <OptionButton
+                key={orig}
+                index={i}
+                text={q.options[orig]}
+                state={answered ? optionState(orig, q.correctIndex, chosen) : 'idle'}
+                disabled={answered}
+                onClick={() => { justAnswered.current = qid; answer(qid, orig) }}
+              />
             ))}
           </div>
+
+          {answered && (
+            <div
+              ref={feedbackRef}
+              role="status"
+              data-testid="feedback"
+              data-result={statusOf(q, chosen)}
+              className="mt-4 rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-[13px] leading-relaxed text-slate-600 animate-fade-in dark:border-slate-700/70 dark:bg-slate-800/40 dark:text-slate-300"
+            >
+              <p className={`mb-1 text-xs font-semibold ${chosen === q.correctIndex ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
+                {chosen === q.correctIndex ? '✓ إجابة صحيحة' : `✗ إجابة خاطئة — الصحيحة: (${letter(q.correctIndex)}) ${q.options[q.correctIndex]}`}
+              </p>
+              <p data-testid="note">{q.explanation}</p>
+              <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500" data-testid="ref">المرجع: {q.ref}</p>
+            </div>
+          )}
+          {!answered && <p className="mt-3 text-xs text-slate-400">اختر إجابة لتظهر الملاحظة ويُفعَّل زر السؤال التالي. لا يمكن تغيير الإجابة بعد اختيارها.</p>}
 
           <div className="mt-7 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-5 dark:border-slate-800">
             <button className="btn-ghost" disabled={exam.current === 0} onClick={() => goTo(exam.current - 1)}>
@@ -156,10 +203,10 @@ export function Exam() {
             </button>
             <div className="ms-auto flex gap-2">
               {isLast ? (
-                <button className="btn-primary" onClick={() => setConfirm(true)}>تسليم الامتحان</button>
+                <button className="btn-primary" disabled={!answered} onClick={() => setConfirm(true)}>تسليم الامتحان</button>
               ) : (
-                <button className="btn-primary" onClick={() => goTo(exam.current + 1)}>
-                  التالي <Icon name="next" className="h-4 w-4" />
+                <button className="btn-primary" disabled={!answered} onClick={() => goTo(exam.current + 1)}>
+                  السؤال التالي <Icon name="next" className="h-4 w-4" />
                 </button>
               )}
             </div>
@@ -171,7 +218,7 @@ export function Exam() {
           <div className="card p-4">{navigator}</div>
           <button className="btn-primary w-full" onClick={() => setConfirm(true)}>تسليم الامتحان</button>
           <button className="btn-ghost w-full text-rose-600 dark:text-rose-400" onClick={() => setQuit(true)}><Icon name="trash" className="h-4 w-4" /> إلغاء الامتحان</button>
-          <p className="text-center text-xs text-slate-400">اختصارات: ← → للتنقل، 1–4 للاختيار، F للعلامة</p>
+          <p className="text-center text-xs text-slate-400">اختصارات: 1–4 للاختيار، ← للتالي بعد الإجابة، F للعلامة</p>
         </aside>
       </div>
 

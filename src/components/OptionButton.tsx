@@ -37,3 +37,10 @@ export function OptionButton({ index, text, state, onClick, disabled }: { index:
     </button>
   )
 }
+
+/** Visual state of an option once the answer is known (orig = original option index). */
+export function optionState(orig: number, correct: number, chosen: number | undefined): OptionState {
+  if (orig === correct) return chosen === orig ? 'correct' : 'missed'
+  if (orig === chosen) return 'wrong'
+  return 'dim'
+}
