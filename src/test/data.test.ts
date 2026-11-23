@@ -1,42 +1,65 @@
-import { readFileSync } from 'node:fs'
-import { createHash } from 'node:crypto'
-import { resolve } from 'node:path'
-import { bank, questions, validateBank, sections, namedTheories } from '../lib/bank'
+import { bank, questions, validateBank, LEVELS, chapters, NOTE_MAX } from '../lib/bank'
 
-const root = resolve(__dirname, '../..')
+const count = (key: 'section' | 'chapter' | 'difficulty') =>
+  questions.reduce<Record<string, number>>((m, q) => ((m[q[key]] = (m[q[key]] ?? 0) + 1), m), {})
 
-describe('بنك الأسئلة', () => {
-  it('لم يتغير عن الملف الأصلي (بصمة SHA-256)', () => {
-    const buf = readFileSync(resolve(root, 'src/data/questions.json'))
-    expect(createHash('sha256').update(buf).digest('hex')).toBe('c48f492c500b0d635e5460b2f64016e9073d68faa8b5bb8b4a59882e1dd75997')
-  })
-
-  it('يحتوي على 100 سؤال بمعرفات 1..100 بالترتيب', () => {
+describe('بنك الأسئلة (الإصدار الثاني)', () => {
+  it('100 سؤال بمعرفات 1..100 دون تكرار في المعرفات أو النصوص', () => {
     expect(questions).toHaveLength(100)
     expect(questions.map((q) => q.id)).toEqual(Array.from({ length: 100 }, (_, i) => i + 1))
+    expect(new Set(questions.map((q) => q.question)).size).toBe(100)
   })
 
-  it('اجتاز التحقق البنيوي: 4 اختيارات، إجابة صحيحة واحدة صالحة، تطابق النظرية', () => {
+  it('اجتاز التحقق البنيوي: 4 اختيارات مختلفة، إجابة صحيحة واحدة، ملاحظة ومرجع لكل سؤال', () => {
     expect(validateBank(bank)).toEqual([])
   })
 
-  it('كل سؤال له إجابة صحيحة واحدة فقط (لا اختيارات مكررة)', () => {
-    for (const q of questions) {
-      expect(new Set(q.options).size).toBe(4)
-      expect(q.options.filter((o) => o === q.options[q.correctIndex])).toHaveLength(1)
-    }
+  it('الملاحظات قصيرة (سطر أو سطرين)', () => {
+    for (const q of questions) expect(q.explanation.length, `Q${q.id}`).toBeLessThanOrEqual(NOTE_MAX)
   })
 
-  it('مفتاح الإجابة يطابق ملف Markdown المرجعي', () => {
-    const md = readFileSync(resolve(root, 'docs/media_theories_exam_100.md'), 'utf8')
-    const letters = ['أ', 'ب', 'ج', 'د']
-    const key = [...md.matchAll(/\*\*(\d+)\. (.) — /g)].map((m) => [Number(m[1]), letters.indexOf(m[2])] as const)
-    expect(key).toHaveLength(100)
-    for (const [id, idx] of key) expect(questions[id - 1].correctIndex).toBe(idx)
+  it('يغطي الفصول الثلاثة والأسئلة التكاملية', () => {
+    const c = count('chapter')
+    for (const ch of chapters) expect(c[ch], ch).toBeGreaterThanOrEqual(15)
   })
 
-  it('يعكس البنية المتوقعة: 3 أقسام و31 نظرية', () => {
-    expect(sections).toHaveLength(3)
-    expect(namedTheories).toHaveLength(31)
+  it('يغطي المحاور الستة المطلوبة', () => {
+    const s = count('section')
+    expect(Object.keys(s).sort()).toEqual(
+      [
+        'التطبيقات البحثية',
+        'الفصل الثاني: الوظائف والبينية والمنطلقات',
+        'المفاهيم الأساسية',
+        'المقارنات بين النظريات',
+        'النظريات العشرون',
+        'النظريات والمداخل الإحدى عشرة',
+      ].sort(),
+    )
+    expect(s['التطبيقات البحثية']).toBeGreaterThanOrEqual(15)
+    expect(s['المقارنات بين النظريات']).toBeGreaterThanOrEqual(10)
+  })
+
+  it('الوزن الأكبر للتطبيق والتحليل لا للفهم المباشر', () => {
+    const d = count('difficulty')
+    expect(Object.keys(d).every((k) => LEVELS.includes(k))).toBe(true)
+    expect((d['تطبيق'] ?? 0) + (d['تحليل'] ?? 0)).toBeGreaterThanOrEqual(70)
+  })
+
+  it('لا تكشف صياغة السؤال الإجابة: نص الإجابة الصحيحة لا يرد حرفيًا في سؤال التطبيقات', () => {
+    for (const q of questions.filter((q) => q.section === 'التطبيقات البحثية'))
+      expect(q.question.includes(q.options[q.correctIndex]), `Q${q.id}`).toBe(false)
+  })
+
+  it('كل نظرية من النظريات الإحدى والثلاثين ممثلة في البنك', () => {
+    const text = questions.map((q) => q.question + q.options.join(' ') + q.theory).join(' ')
+    const theories = [
+      'ترتيب الأولويات', 'التأطير', 'الغرس الثقافي', 'الاستخدامات والإشباعات', 'الاعتماد على وسائل الإعلام',
+      'دوامة الصمت', 'فجوة المعرفة', 'التعلم الاجتماعي', 'انتشار الابتكارات', 'التنافر المعرفي', 'التهيئة',
+      'الشخص الثالث', 'الحكم الاجتماعي', 'الاحتمالية الموسعة', 'معالجة المعلومات الاجتماعية', 'ثراء الوسيلة',
+      'التعرض الانتقائي', 'التفاعل شبه الاجتماعي', 'إدارة المزاج', 'عدائية وسائل الإعلام',
+      'المؤامرة', 'التفاعلية الرمزية', 'التدعيم', 'النمذجة', 'أصحاب المصلحة', 'المقاومة النفسية', 'المجال العام',
+      'السياق', 'إدارة الواقع الاجتماعي', 'التأويل', 'الحتمية التكنولوجية',
+    ]
+    for (const t of theories) expect(text.includes(t), t).toBe(true)
   })
 })

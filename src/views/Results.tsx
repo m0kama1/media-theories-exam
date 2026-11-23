@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useApp } from '../state'
 import { OPTION_LETTERS } from '../lib/bank'
 import { formatDuration, grade, gradeLabel, orderOf, type QStatus } from '../lib/exam'
-import { feedbackFor } from '../lib/feedback'
 import { Icon } from '../components/Icon'
 import { OptionButton, type OptionState } from '../components/OptionButton'
 import { BarList, DifficultyChip, Donut, Legend, Stat } from '../components/ui'
@@ -99,17 +98,23 @@ export function Results({ id }: { id: string | null }) {
 
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="card p-5">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><h2 className="font-bold">الأداء حسب الفصل</h2><Legend /></div>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><h2 className="font-bold">الأداء حسب محور الأسئلة</h2><Legend /></div>
           <BarList rows={g.bySection} />
         </div>
-        <div className="card p-5">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><h2 className="font-bold">الأداء حسب مستوى الصعوبة</h2><Legend /></div>
-          <BarList rows={g.byDifficulty} />
+        <div className="card space-y-6 p-5">
+          <div>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><h2 className="font-bold">الأداء حسب فصول الكتاب</h2><Legend /></div>
+            <BarList rows={g.byChapter} />
+          </div>
+          <div>
+            <h2 className="mb-4 font-bold">الأداء حسب المستوى المعرفي</h2>
+            <BarList rows={g.byDifficulty} />
+          </div>
         </div>
       </section>
 
       <section className="card p-5">
-        <div className="mb-1 flex flex-wrap items-center justify-between gap-2"><h2 className="font-bold">الأداء حسب النظرية</h2><Legend /></div>
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-2"><h2 className="font-bold">الأداء حسب النظرية أو الموضوع</h2><Legend /></div>
         <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">مرتبة من الأضعف إلى الأقوى.</p>
         <div className="grid gap-x-10 gap-y-3 md:grid-cols-2"><BarList rows={g.byTheory.slice(0, half)} /><BarList rows={g.byTheory.slice(half)} /></div>
       </section>
@@ -131,7 +136,6 @@ export function Results({ id }: { id: string | null }) {
           {items.map(({ question: q, chosen, status, n }) => {
             const order = orderOf(attempt.optionOrder, q)
             const letter = (orig: number) => OPTION_LETTERS[order.indexOf(orig)]
-            const fb = feedbackFor(q, chosen)
             return (
               <article key={q.id} className="card p-5 sm:p-6" data-testid="review-item">
                 <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -156,13 +160,11 @@ export function Results({ id }: { id: string | null }) {
                   </div>
                 </dl>
 
-                <div className="mt-3 space-y-1.5 rounded-xl bg-brand-50 p-4 text-sm leading-relaxed text-brand-950 dark:bg-brand-500/10 dark:text-brand-50" data-testid="note">
-                  <p><b className="text-emerald-700 dark:text-emerald-400">✓ لماذا هي الصحيحة؟ </b>{fb.why}</p>
-                  {fb.wrongWhy && <p><b className="text-rose-700 dark:text-rose-400">✗ لماذا اختيارك خطأ؟ </b>{fb.wrongWhy}</p>}
-                  {fb.extra && <p><b>ملاحظة: </b>{fb.extra}</p>}
-                  <p><b className="text-amber-700 dark:text-amber-400">💡 للتذكّر: </b>{fb.tip}</p>
+                <div className="mt-3 flex gap-3 rounded-xl bg-brand-50 p-4 text-sm leading-relaxed text-brand-950 dark:bg-brand-500/10 dark:text-brand-50" data-testid="note">
+                  <Icon name="bulb" className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+                  <p><b>ملاحظة تعليمية: </b>{q.explanation}</p>
                 </div>
-                <p className="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400"><b>تفسير بنك الأسئلة:</b> {q.explanation}</p>
+                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400" data-testid="ref"><b>المرجع في الكتاب:</b> {q.ref}</p>
               </article>
             )
           })}

@@ -46,9 +46,9 @@ export function Stat({ label, value, tone = 'slate', sub }: { label: string; val
 }
 
 const DIFF_TONE: Record<string, string> = {
-  متوسط: 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300',
-  تطبيقي: 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
-  صعب: 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300',
+  فهم: 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300',
+  تطبيق: 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
+  تحليل: 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300',
 }
 export function DifficultyChip({ d }: { d: string }) {
   return <span className={`chip ${DIFF_TONE[d] ?? 'bg-slate-100 text-slate-700'}`}>{d}</span>

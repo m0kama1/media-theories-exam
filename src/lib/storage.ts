@@ -3,8 +3,9 @@ import { byId } from './bank'
 
 const PREFIX = 'mte:'
 export const KEYS = {
-  exam: PREFIX + 'exam-session',
-  history: PREFIX + 'history',
+  // v2: new question bank — older sessions/attempts referred to different questions
+  exam: PREFIX + 'v2:exam-session',
+  history: PREFIX + 'v2:history',
   theme: PREFIX + 'theme',
 } as const
 
@@ -45,6 +46,5 @@ export function pushHistory(a: AttemptRecord): AttemptRecord[] {
 
 /** Remove data left by earlier versions (study mode, theory stats). */
 export function cleanupLegacy() {
-  save(PREFIX + 'study-session', null)
-  save(PREFIX + 'theory-stats', null)
+  for (const k of ['study-session', 'theory-stats', 'exam-session', 'history']) save(PREFIX + k, null)
 }

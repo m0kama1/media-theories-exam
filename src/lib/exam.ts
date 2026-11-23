@@ -1,5 +1,5 @@
 import type { AttemptRecord, OptionOrder, Question, Session } from '../types'
-import { getQuestion, questions } from './bank'
+import { LEVELS, chapters, getQuestion, questions } from './bank'
 
 export function shuffle<T>(xs: T[], rand: () => number = Math.random): T[] {
   const a = xs.slice()
@@ -61,6 +61,7 @@ export interface GradeResult {
   items: { question: Question; chosen: number | undefined; status: QStatus }[]
   bySection: Bucket[]
   byDifficulty: Bucket[]
+  byChapter: Bucket[]
   byTheory: Bucket[]
 }
 
@@ -102,7 +103,8 @@ export function grade(questionIds: number[], answers: Record<number, number>): G
     percent: pct(correct, items.length),
     items,
     bySection: bucketize(items, (q) => q.section, Array.from(new Set(questions.map((q) => q.section)))),
-    byDifficulty: bucketize(items, (q) => q.difficulty, ['متوسط', 'تطبيقي', 'صعب']),
+    byDifficulty: bucketize(items, (q) => q.difficulty, LEVELS),
+    byChapter: bucketize(items, (q) => q.chapter, chapters),
     byTheory: bucketize(items, (q) => q.theory).sort((a, b) => a.percent - b.percent || b.total - a.total),
   }
 }

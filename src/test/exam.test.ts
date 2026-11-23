@@ -22,11 +22,13 @@ describe('منطق التصحيح', () => {
   })
   it('تحليلات الفصل والصعوبة والنظرية متسقة مع المجموع', () => {
     const g = grade(shuffle(all), perfect)
-    for (const b of [g.bySection, g.byDifficulty, g.byTheory]) {
+    for (const b of [g.bySection, g.byDifficulty, g.byChapter, g.byTheory]) {
       expect(b.reduce((s, x) => s + x.total, 0)).toBe(100)
       expect(b.reduce((s, x) => s + x.correct, 0)).toBe(100)
     }
-    expect(g.bySection.map((b) => b.total)).toEqual([60, 33, 7])
+    expect(g.bySection.map((b) => b.total)).toEqual([11, 17, 20, 20, 12, 20])
+    expect(g.byChapter.map((b) => b.key)).toEqual(['الفصل الأول', 'الفصل الثاني', 'الفصل الثالث', 'تكاملي'])
+    expect(g.byDifficulty.map((b) => b.key)).toEqual(['فهم', 'تطبيق', 'تحليل'])
   })
 })
 

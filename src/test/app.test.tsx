@@ -17,6 +17,7 @@ async function startExam(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole('button', { name: /ابدأ الامتحان|ابدأ امتحانًا جديدًا/ }))
   await user.click(screen.getByRole('button', { name: 'ابدأ الآن' }))
 }
+const optionByText = (t: string) => optionButtons().find((b) => b.querySelector('.flex-1')!.textContent === t)!
 const optionButtons = () => within(screen.getByRole('group', { name: 'الاختيارات' })).getAllByRole('button')
 
 describe('تدفق الامتحان', () => {
@@ -29,6 +30,9 @@ describe('تدفق الامتحان', () => {
     expect(screen.queryByText(/وضع المذاكرة/)).toBeNull()
     expect(screen.queryByText(/امتحان مخصص/)).toBeNull()
     expect(screen.queryByText(/امتحان القسم/)).toBeNull()
+    expect(screen.queryByText(/محتوى الامتحان/)).toBeNull()
+    expect(screen.queryByText(/أقسام/)).toBeNull()
+    expect(screen.getByRole('button', { name: /ابدأ الامتحان/ })).toBeInTheDocument()
     await go('/study')
     expect(window.location.hash).toBe('#/')
   })
@@ -48,7 +52,7 @@ describe('تدفق الامتحان', () => {
     expect(shown).toEqual(s.optionOrder[q1.id].map((i) => q1.options[i]))
 
     // answer Q1 correctly by clicking the correct TEXT wherever it is
-    await user.click(screen.getByRole('button', { name: new RegExp(q1.options[q1.correctIndex]) }))
+    await user.click(optionByText(q1.options[q1.correctIndex]))
     expect(document.querySelector('[data-state="correct"],[data-state="wrong"]')).toBeNull()
     expect(screen.queryByTestId('note')).toBeNull()
     expect(screen.queryByText(/لماذا/)).toBeNull()
@@ -57,7 +61,7 @@ describe('تدفق الامتحان', () => {
     await user.click(screen.getByRole('button', { name: /التالي/ }))
     const q2 = currentQ()
     const wrong2 = q2.options[(q2.correctIndex + 1) % 4]
-    await user.click(screen.getByRole('button', { name: new RegExp(wrong2) }))
+    await user.click(optionByText(wrong2))
     await user.click(screen.getByRole('button', { name: /وضع علامة/ }))
 
     // reload keeps order & answers
@@ -79,20 +83,20 @@ describe('تدفق الامتحان', () => {
 
     // every item shows my answer, the correct answer, and a note
     expect(screen.getAllByTestId('note')).toHaveLength(100)
+    expect(screen.getAllByTestId('ref')).toHaveLength(100)
     expect(screen.getAllByTestId('correct-answer')).toHaveLength(100)
 
     // Q1 (correct): note without "why wrong"
     const i1 = items[0]
     expect(within(i1).getByTestId('my-answer')).toHaveTextContent(q1.options[q1.correctIndex])
-    expect(within(i1).getByTestId('note')).toHaveTextContent('لماذا هي الصحيحة')
-    expect(within(i1).getByTestId('note')).not.toHaveTextContent('لماذا اختيارك خطأ')
+    expect(within(i1).getByTestId('note')).toHaveTextContent(q1.explanation)
+    expect(within(i1).getByTestId('ref')).toHaveTextContent(q1.ref)
 
     // Q2 (wrong): shows both answers + why my choice is wrong
     const i2 = items[1]
     expect(within(i2).getByTestId('my-answer')).toHaveTextContent(wrong2)
     expect(within(i2).getByTestId('correct-answer')).toHaveTextContent(q2.options[q2.correctIndex])
-    expect(within(i2).getByTestId('note')).toHaveTextContent('لماذا اختيارك خطأ')
-    expect(i2).toHaveTextContent(q2.explanation)
+    expect(within(i2).getByTestId('note')).toHaveTextContent(q2.explanation)
     // review keeps the attempt's option order
     const letters = within(i2).getAllByRole('button').map((b) => b.querySelector('.flex-1')!.textContent)
     expect(letters).toEqual(s.optionOrder[q2.id].map((i) => q2.options[i]))
