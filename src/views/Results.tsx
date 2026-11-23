@@ -6,6 +6,7 @@ import { Icon } from '../components/Icon'
 import { OptionButton, optionState } from '../components/OptionButton'
 import { BarList, DifficultyChip, Donut, Legend, Stat } from '../components/ui'
 import { StartExamModal } from '../components/StartExamModal'
+import { Credits, FACULTY, Logo } from '../components/Brand'
 
 const toneCls = {
   great: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
@@ -53,9 +54,16 @@ export function Results({ id }: { id: string | null }) {
     <div className="space-y-6 animate-fade-in">
       <StartExamModal open={startOpen} onClose={() => setStartOpen(false)} />
 
-      <div className="hidden print:block">
-        <h1 className="text-xl font-bold">تقرير نتيجة – امتحان نظريات التأثير الإعلامي</h1>
-        <p className="text-sm">{new Date(attempt.submittedAt).toLocaleString('ar-EG')}</p>
+      <div className="hidden space-y-3 border-b border-slate-300 pb-4 print:block">
+        <div className="flex items-center gap-3">
+          <Logo className="h-16 w-16" />
+          <div>
+            <div className="text-sm font-semibold">{FACULTY}</div>
+            <h1 className="text-xl font-bold">تقرير نتيجة – امتحان نظريات التأثير الإعلامي</h1>
+            <p className="text-sm">{new Date(attempt.submittedAt).toLocaleString('ar-EG')}</p>
+          </div>
+        </div>
+        <Credits tone="print" />
       </div>
 
       <section className="card overflow-hidden">

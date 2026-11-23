@@ -6,6 +6,7 @@ import { navigate } from '../lib/router'
 import { Icon } from '../components/Icon'
 import { Modal, ProgressBar } from '../components/ui'
 import { StartExamModal } from '../components/StartExamModal'
+import { Credits, FACULTY, Logo } from '../components/Brand'
 
 export function Home() {
   const { exam, history, clearHistory } = useApp()
@@ -20,8 +21,10 @@ export function Home() {
         <div className="pointer-events-none absolute -top-24 -left-24 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-32 left-1/3 h-72 w-72 rounded-full bg-violet-400/20 blur-3xl" />
         <div className="relative">
-          <span className="chip bg-white/15 text-white ring-1 ring-white/20">تمهيدي ماجستير الصحافة الإخبارية</span>
-          <h1 className="mt-5 text-3xl font-bold leading-tight sm:text-4xl">{bank.title}</h1>
+          <Logo className="mx-auto h-24 w-24 shadow-lg ring-4 ring-white/30 sm:h-28 sm:w-28" />
+          <p className="mt-3 text-sm font-semibold text-brand-100">{FACULTY}</p>
+          <span className="chip mt-3 bg-white/15 text-white ring-1 ring-white/20">تمهيدي ماجستير الصحافة الإخبارية</span>
+          <h1 className="mt-4 text-3xl font-bold leading-tight sm:text-4xl">{bank.title}</h1>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-brand-100">
             {questions.length} سؤال اختيار من متعدد · ترتيب عشوائي في كل محاولة · تصحيح فوري وملاحظة قصيرة بعد كل إجابة
           </p>
@@ -40,6 +43,8 @@ export function Home() {
           )}
         </div>
       </section>
+
+      <Credits />
 
       {history.length > 0 && (
         <section>

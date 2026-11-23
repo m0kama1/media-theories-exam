@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { useApp } from '../state'
 import { navigate } from '../lib/router'
 import { Icon } from './Icon'
+import { AUTHOR, FACULTY, Logo, SUPERVISOR } from './Brand'
 
 export function Layout({ children, focus = false }: { children: ReactNode; focus?: boolean }) {
   const { theme, toggleTheme } = useApp()
@@ -10,12 +11,10 @@ export function Layout({ children, focus = false }: { children: ReactNode; focus
       <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/80 backdrop-blur-lg print:hidden dark:border-slate-800 dark:bg-slate-950/80">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4">
           <button onClick={() => !focus && navigate('/')} className="flex items-center gap-2.5 text-start" aria-label="الصفحة الرئيسية">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-brand-500 to-violet-600 text-white shadow-md shadow-brand-500/30">
-              <Icon name="chart" className="h-5 w-5" />
-            </span>
+            <Logo className="h-10 w-10" />
             <span className="leading-tight">
               <span className="block text-sm font-bold">نظريات التأثير الإعلامي</span>
-              <span className="block text-xs text-slate-500 dark:text-slate-400">منصة الامتحان التفاعلية</span>
+              <span className="block text-xs text-slate-500 dark:text-slate-400">{FACULTY}</span>
             </span>
           </button>
           <button
@@ -29,6 +28,11 @@ export function Layout({ children, focus = false }: { children: ReactNode; focus
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-4 py-6 pb-12">{children}</main>
+      {!focus && (
+        <footer className="border-t border-slate-200/70 py-6 text-center text-xs text-slate-500 print:hidden dark:border-slate-800 dark:text-slate-400">
+          {FACULTY} · إشراف {SUPERVISOR.name} · إعداد الباحث {AUTHOR}
+        </footer>
+      )}
     </div>
   )
 }
